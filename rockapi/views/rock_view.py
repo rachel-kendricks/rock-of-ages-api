@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 from rockapi.models import Rock, Type
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class RockView(ViewSet):
@@ -50,18 +51,63 @@ class RockView(ViewSet):
         Returns:
             Response -- 200, 404, or 500 status code
         """
-        try:
-            void = Void.objects.get(pk=pk)
-            void.delete()
-            return Response(None, status=status.HTTP_204_NO_CONTENT)
 
-        except Void.DoesNotExist as ex:
+        # try:
+        #     rock = Rock.objects.get(pk=pk)
+        #     rock.delete()
+        #     return Response(None, status=status.HTTP_204_NO_CONTENT)
+
+        # except ObjectDoesNotExist:
+        #     return Response(
+        #         {"message": "Rock not found"}, status=status.HTTP_404_NOT_FOUND
+        #     )
+
+        # except Exception as ex:
+        #     return Response(
+        #         {"message": ex.args[0]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        #     )
+
+        try:
+            rock = Rock.objects.get(pk=pk)
+            if rock.user.id == request.auth.user.id:
+                rock.delete()
+                return Response(None, status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response(
+                    {"message": "You do not own that rock"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        except Rock.DoesNotExist as ex:
             return Response({"message": ex.args[0]}, status=status.HTTP_404_NOT_FOUND)
 
         except Exception as ex:
             return Response(
-                {"message": ex.args[0]}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"message": ex.args[0]},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        # # Verify that the pk of the rock owner is the same pk as the authenticated user
+        # if rock.user.id == request.auth.user.id:
+        #     try:
+        #         rock.delete()
+        #         return Response(None, status=status.HTTP_204_NO_CONTENT)
+
+        #     except Rock.DoesNotExist as ex:
+        #         return Response(
+        #             {"message": ex.args[0]}, status=status.HTTP_404_NOT_FOUND
+        #         )
+
+        #     except Exception as ex:
+        #         return Response(
+        #             {"message": ex.args[0]},
+        #             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        #         )
+        # else:
+        #     return Response(
+        #         {"message": "You do not own that rock"},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
 
 
 class RockOwnerSerializer(serializers.ModelSerializer):
